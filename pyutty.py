@@ -46,20 +46,20 @@ while repeat:
             )
         except:
             print("Unable to open serial port")
+        else:
+            # Read from the serial port
+            while(1):
+                try:
+                    # Wait until there is data waiting in the serial buffer
+                    if(serialPort.in_waiting > 0):
 
-        # Read from the serial port
-        while(1):
-            try:
-                # Wait until there is data waiting in the serial buffer
-                if(serialPort.in_waiting > 0):
-
-                    # Print the contents of the serial data
-                    print(serialPort.readline().decode('Ascii'), end = '')
-            # If connection is lost or user types (ctrl + c)
-            except:
-                print("Connection Lost")
-                serialPort.close()
-                break
+                        # Print the contents of the serial data
+                        print(serialPort.readline().decode('Ascii'), end = '')
+                # If connection is lost or user types (ctrl + c)
+                except:
+                    print("Connection Lost")
+                    serialPort.close()
+                    break
     
     # Ask if user wants to go again
     response = input("Would you like to open serial port again? (y/n): ")
