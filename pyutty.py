@@ -5,19 +5,7 @@ import sys
 import os
 import time
 
-## DEFINITIONS ##
-
-
-
-
-# port = sys.argv[0]
-
-# with serial.Serial() as ser:
-#         ser.baudrate = 115200
-#         ser.port = str(port)
-#         ser.open()
-
-
+repeat = True
 
 def getPorts():
     ports = serial.tools.list_ports.comports()
@@ -41,36 +29,41 @@ def getPorts():
     
     return None
 
-port = getPorts()
+while repeat:
+    port = getPorts()
+    time.sleep(2)
+    os.system("cls")
 
-time.sleep(2)
-os.system("cls")
+    if port:
+        # Try to open serial port
+        try:
+            serialPort = serial.Serial(
+                port = port,
+                baudrate=115200,
+                bytesize=8, 
+                timeout=2, 
+                stopbits=serial.STOPBITS_ONE
+            )
+        except:
+            print("Unable to open serial port")
 
-serialPort = serial.Serial(
-    port = port,
-    baudrate=115200,
-    bytesize=8, 
-    timeout=2, 
-    stopbits=serial.STOPBITS_ONE
-)
+        # Read from the serial port
+        while(1):
+            try:
+                # Wait until there is data waiting in the serial buffer
+                if(serialPort.in_waiting > 0):
 
-serialString = ""
-
-try:
-    while(1):
-        # Wait until there is data waiting in the serial buffer
-        if(serialPort.in_waiting > 0):
-
-            # Read data out of the buffer until a carraige return / new line is found
-            serialString = serialPort.readline()
-
-            # Print the contents of the serial data
-            print(serialString.decode('Ascii'), end = '')
-
-except KeyboardInterrupt:
-    serialPort.close()
-    print("\nClosing Port")
+                    # Print the contents of the serial data
+                    print(serialPort.readline().decode('Ascii'), end = '')
+            # If connection is lost or user types (ctrl + c)
+            except:
+                print("Connection Lost")
+                serialPort.close()
+                break
     
+    # Ask if user wants to go again
+    response = input("Would you like to open serial port again? (y/n): ")
     
-
-serialPort.close()
+    # If user says no, then end main loop
+    if response.lower() != 'y':
+        repeat = False
