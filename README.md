@@ -1,1 +1,5 @@
 # Pyutty
+
+## Dependencies
+- keyboard
+- pyserial
