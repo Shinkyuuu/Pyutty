@@ -12,6 +12,8 @@ from rich.live import Live
 from time import sleep
 import msvcrt
 
+import serial_meth
+
 def make_layout():
     layout = Layout(name="root")
 
@@ -70,3 +72,71 @@ def refillTable(layout, terminal_table, serial_lines, index, end):
             border_style="white",
         )
     )
+
+def readSerial(serialPort, layout, terminal, serial_lines, curr_index, end_index):
+    line = serial_meth.readSerialLine(serialPort)
+
+    if serial_lines:
+        if len(line) > 0:
+            serial_lines.append(line)
+            end_index += 1
+
+            refillTable(layout, terminal, serial_lines, curr_index, end_index)
+
+        return 0
+    else:
+        return None
+
+
+
+def checkKeyInputs(serialPort, layout, terminal, serial_lines, curr_index, end_index, line):
+    if msvcrt.kbhit():
+        key = ord(msvcrt.getch())
+
+        if key == 27: #ESC
+                return None, 0, 0
+        elif key == 8: #Backspace
+            if len(line) > 0:
+                line = line[:-1]
+                layout["input"].update(
+                    Panel(
+                        "[bold]Enter Text:[/bold] [white]" + line + "[/white]",
+                        border_style="medium_purple"
+                    )
+                )
+        elif key == 13: #Enter
+            end_index += 1
+            serial_lines.append(line)
+            serial_meth.writeSerialLine(serialPort, line)
+            line = ''
+            layout["input"].update(
+                Panel(
+                    "[bold]Enter Text:[/bold] ",
+                    border_style="medium_purple"
+                )
+            )
+            
+            refillTable(layout, terminal, serial_lines, curr_index, end_index)
+            
+        elif key == 224: #Special keys (arrows, f keys, ins, del, etc.)
+            key = ord(msvcrt.getch())
+
+            if key == 80 and 0 <= curr_index + 1 <= end_index: #Down arrow
+                curr_index += 1
+
+            elif key == 72 and 0 <= curr_index - 1 <= end_index: #Up arrow
+                curr_index -= 1
+            
+            refillTable(layout, terminal, serial_lines, curr_index, end_index)
+
+        else:
+            line += chr(key)
+
+            layout["input"].update(
+                Panel(
+                    "[bold]Enter Text:[/bold] [white]" + line + "[/white]",
+                    border_style="medium_purple"
+                )
+            )
+    
+    return line, curr_index, end_index

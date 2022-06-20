@@ -70,7 +70,7 @@ def setup_start():
         layout["body"].update(Panel(str(port) + " chosen"))
         time.sleep(2)
 
-        serial_connect = setup_disp.openSerial(
+        serialPort = setup_disp.openSerial(
             layout, 
             port, 
             115200, 
@@ -79,13 +79,13 @@ def setup_start():
             serial.STOPBITS_ONE
         )
 
-        while not serial_connect:
+        while not serialPort:
             if not setup_disp.reattempt(layout, "Cannot connect to " + port + ". \nWould you like to try again?"):
-                    return SerialConfig(port, 115200, 8, 2, serial.STOPBITS_ONE)
+                    return None
         
-        return SerialConfig(port, 115200, 8, 2, serial.STOPBITS_ONE)
+        return SerialConfig(port, 115200, 8, 2, serial.STOPBITS_ONE), serialPort
 
-def main_start(serialConfig):
+def main_start(serialConfig, serialPort):
     terminal = Table.grid()
     terminal.add_column(style="white", no_wrap=False)
     terminal.add_column(style="white", no_wrap=False)
@@ -125,55 +125,15 @@ def main_start(serialConfig):
         while not done:
             sleep(.01)
 
-            if msvcrt.kbhit():
-                key = ord(msvcrt.getch())
-                
-                if key == 27: #ESC
-                        done = True
-                elif key == 8: #Backspace
-                    if len(line) > 0:
-                        line = line[:-1]
-                        layout["input"].update(
-                            Panel(
-                                "[bold]Enter Text:[/bold] [white]" + line + "[/white]",
-                                border_style="medium_purple"
-                            )
-                        )
-                elif key == 13: #Enter
-                    end_index += 1
-                    serial_lines.append(line)
-                    line = ''
-                    layout["input"].update(
-                        Panel(
-                            "[bold]Enter Text:[/bold] ",
-                            border_style="medium_purple"
-                        )
-                    )
+            line, curr_index, end_index = main_disp.checkKeyInputs(serialPort, layout, terminal, serial_lines, curr_index, end_index, line)
+            
+            status = main_disp.readSerial(serialPort, layout, terminal, serial_lines, curr_index, end_index)
 
-                    main_disp.refillTable(layout, terminal, serial_lines, curr_index, end_index)
-                    
-                elif key == 224: #Special keys (arrows, f keys, ins, del, etc.)
-                    key = ord(msvcrt.getch())
+            if not line or not status:
+                done = True
+            
 
-                    if key == 80 and 0 <= curr_index + 1 <= end_index: #Down arrow
-                        curr_index += 1
-
-                    elif key == 72 and 0 <= curr_index - 1 <= end_index: #Up arrow
-                        curr_index -= 1
-                    
-                    main_disp.refillTable(layout, terminal, serial_lines, curr_index, end_index)
-
-                else:
-                    line += chr(key)
-
-                    layout["input"].update(
-                        Panel(
-                            "[bold]Enter Text:[/bold] [white]" + line + "[/white]",
-                            border_style="medium_purple"
-                        )
-                    )
-
-serialConfig = setup_start()
+serialConfig, serialPort = setup_start()
 
 if serialConfig:
-    main_start(serialConfig)
+    main_start(serialConfig, serialPort)

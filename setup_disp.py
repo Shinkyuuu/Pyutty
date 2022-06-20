@@ -95,8 +95,8 @@ def selections(layout, table, title, items):
             
 def getPorts(layout, port_table):
     layout["body"].update(Panel("There are many ports"))
-    #ports = serial.tools.list_ports.comports()
-    ports = ["COM3", "COM2"]
+    ports = serial.tools.list_ports.comports()
+    #ports = ["COM3", "COM2"]
     # User chooses COM port
     if len(ports) == 1: # If there is only 1, choose it
         layout["body"].update(Panel("Openning " + ports[0] + "..."))
