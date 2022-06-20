@@ -21,24 +21,13 @@ def make_layout():
     )
     layout["body"].split_row(
         Layout(name="side", minimum_size=13),
-        Layout(name="main", ratio=10, minimum_size=30),
+        Layout(name="main", ratio=10, minimum_size=10),
     )
     layout["main"].split(
-        Layout(name="term", ratio=10, minimum_size=30),
-        Layout(name="input", minimum_size = 5)
+        Layout(name="term", ratio=10, minimum_size=10),
+        Layout(name="input", minimum_size = 3)
     )
     return layout
-
-class Header:
-    def __rich__(self):
-        grid = Table.grid(expand=True)
-        grid.add_column(justify="left", ratio=1)
-        grid.add_column(justify="right")
-        grid.add_row(
-            "[b]Pyutty[/b] Serial Terminal",
-            datetime.now().ctime().replace(":", "[blink]:[/]"),
-        )
-        return Panel(grid, style="white on medium_purple4")
 
 def make_settings(port, baudrate, bytesize, timeout, stopbits):
     settings = Table.grid(padding=0)
@@ -66,8 +55,8 @@ def make_settings(port, baudrate, bytesize, timeout, stopbits):
 
 def refillTable(layout, terminal_table, serial_lines, index, end):
     terminal = Table.grid()
-    terminal.add_column(style="white")
-    terminal.add_column(style="white")
+    terminal.add_column(style="white", no_wrap=True)
+    terminal.add_column(style="white", no_wrap=True)
 
     for i, line in enumerate(serial_lines[index:]):
         terminal.add_row(str(i + index), "  " + line)
@@ -81,57 +70,3 @@ def refillTable(layout, terminal_table, serial_lines, index, end):
             border_style="white",
         )
     )
-
-def start():
-    terminal = Table.grid()
-    terminal.add_column(style="white")
-    terminal.add_column(style="white")
-
-    layout = make_layout()
-    layout["header"].update(Header())
-    layout["side"].update(make_settings())
-    layout["term"].update(
-        Panel(
-            terminal,
-            box=box.ROUNDED,
-            padding=(1, 2),
-            title="Serial Terminal",
-            border_style="white",
-        )
-    )
-
-    done = False
-    serial_lines = []
-    curr_index = 0
-    end_index = len(serial_lines) - 1
-    line = ""
-
-    with Live(layout, refresh_per_second=10, screen=True) as live:
-        while not done:
-            sleep(.01)
-
-            if msvcrt.kbhit():
-                key = ord(msvcrt.getch())
-                
-                if key == 27: #ESC
-                        done = True
-                elif key == 13: #Enter
-                    end_index += 1
-                    serial_lines.append(line)
-                    line = ''
-
-                    refillTable(layout, terminal, serial_lines, curr_index, end_index)
-                    
-                elif key == 224: #Special keys (arrows, f keys, ins, del, etc.)
-                    key = ord(msvcrt.getch())
-
-                    if key == 80 and 0 <= curr_index + 1 <= end_index: #Down arrow
-                        curr_index += 1
-
-                    elif key == 72 and 0 <= curr_index - 1 <= end_index: #Up arrow
-                        curr_index -= 1
-                    
-                    refillTable(layout, terminal, serial_lines, curr_index, end_index)
-
-                else:
-                    line += chr(key)                    

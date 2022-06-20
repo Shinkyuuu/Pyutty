@@ -40,17 +40,6 @@ def make_layout():
 
     return layout
 
-class Header:
-    def __rich__(self):
-        grid = Table.grid(expand=True)
-        grid.add_column(justify="left", ratio=1)
-        grid.add_column(justify="right")
-        grid.add_row(
-            "[b]Pyutty[/b] Serial Terminal",
-            datetime.now().ctime().replace(":", "[blink]:[/]"),
-        )
-        return Panel(grid, style="white on medium_purple4")
-
 def displaySelections(layout, table, title, items, choice):
     table = Table.grid()
     table.add_column("Choose Port", justify="center")
@@ -138,49 +127,3 @@ def reattempt(layout, message):
     reattempt_table = Table.grid()
     reattempt_table.add_column(justify="center")
     return True if selections(layout, reattempt_table, message, ["yes", "nes"]) == "yes" else False
-
-def start():
-    port_table = Table.grid()
-    port_table.add_column(justify="center")
-    port_table.add_row("[b light_steel_blue1][underline]Choose a Port[/underline][/b light_steel_blue1]")
-    
-    layout = make_layout()
-    layout["header"].update(Header())
-    layout["body"].update(
-        Panel(
-            Align.center(
-                Align.center(port_table),
-                vertical="middle",
-            ),
-            box=box.ROUNDED,
-            padding=(2, 2),
-            title="",
-            border_style="white",
-        )
-    )
-
-    done = False
-    
-    with Live(layout, refresh_per_second=10, screen=True) as live:
-        while not done:
-            port = getPorts(layout, port_table)
-
-            if port == alerts.noPorts:
-                if not reattempt(layout, "There are not Ports open... Try again?"):
-                    return -1
-            elif port == alerts.leave:
-                if reattempt(layout, "Select 'Yes' to exit program..."):
-                    return -1
-            else:
-                done = True
-
-        layout["body"].update(Panel(str(port) + " chosen"))
-        time.sleep(2)
-
-        serial_connect = openSerial(layout, port, 115200, 8, 2, serial.STOPBITS_ONE)
-
-        while not serial_connect:
-            if not reattempt(layout, "Cannot connect to " + port + ". \nWould you like to try again?"):
-                    return -1
-        
-        return 0

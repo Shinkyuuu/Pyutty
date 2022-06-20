@@ -20,6 +20,16 @@ import main_disp
 
 SerialConfig = namedtuple("SerialConfig", "port baudrate bytesize timeout stopbits")
 
+class Header:
+    def __rich__(self):
+        grid = Table.grid(expand=True)
+        grid.add_column(justify="left", ratio=1)
+        grid.add_column(justify="right")
+        grid.add_row(
+            "[b]Pyutty[/b] Serial Terminal",
+            datetime.now().ctime().replace(":", "[blink]:[/]"),
+        )
+        return Panel(grid, style="white on medium_purple4")
 
 #status = setup_disp.start()
 def setup_start():
@@ -28,7 +38,7 @@ def setup_start():
     port_table.add_row("[b light_steel_blue1][underline]Choose a Port[/underline][/b light_steel_blue1]")
     
     layout = setup_disp.make_layout()
-    layout["header"].update(setup_disp.Header())
+    layout["header"].update(Header())
     layout["body"].update(
         Panel(
             Align.center(
@@ -77,11 +87,11 @@ def setup_start():
 
 def main_start(serialConfig):
     terminal = Table.grid()
-    terminal.add_column(style="white")
-    terminal.add_column(style="white")
+    terminal.add_column(style="white", no_wrap=False)
+    terminal.add_column(style="white", no_wrap=False)
 
     layout = main_disp.make_layout()
-    layout["header"].update(main_disp.Header())
+    layout["header"].update(Header())
     layout["side"].update(main_disp.make_settings(
         serialConfig.port,
         str(serialConfig.baudrate),
@@ -96,6 +106,12 @@ def main_start(serialConfig):
             padding=(1, 2),
             title="Serial Terminal",
             border_style="white",
+        )
+    )
+    layout["input"].update(
+        Panel(
+            "[bold]Enter Text:[/bold] ",
+            border_style="medium_purple"
         )
     )
 
@@ -114,10 +130,25 @@ def main_start(serialConfig):
                 
                 if key == 27: #ESC
                         done = True
+                elif key == 8: #Backspace
+                    if len(line) > 0:
+                        line = line[:-1]
+                        layout["input"].update(
+                            Panel(
+                                "[bold]Enter Text:[/bold] [white]" + line + "[/white]",
+                                border_style="medium_purple"
+                            )
+                        )
                 elif key == 13: #Enter
                     end_index += 1
                     serial_lines.append(line)
                     line = ''
+                    layout["input"].update(
+                        Panel(
+                            "[bold]Enter Text:[/bold] ",
+                            border_style="medium_purple"
+                        )
+                    )
 
                     main_disp.refillTable(layout, terminal, serial_lines, curr_index, end_index)
                     
@@ -134,6 +165,13 @@ def main_start(serialConfig):
 
                 else:
                     line += chr(key)
+
+                    layout["input"].update(
+                        Panel(
+                            "[bold]Enter Text:[/bold] [white]" + line + "[/white]",
+                            border_style="medium_purple"
+                        )
+                    )
 
 serialConfig = setup_start()
 
