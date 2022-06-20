@@ -76,18 +76,30 @@ def refillTable(layout, terminal_table, serial_lines, index, end):
 def readSerial(serialPort, layout, terminal, serial_lines, curr_index, end_index):
     line = serial_meth.readSerialLine(serialPort)
 
-    if serial_lines:
-        if len(line) > 0:
+    if line != None:
+        length = len(line)
+        if length > 0:
             serial_lines.append(line)
             end_index += 1
 
             refillTable(layout, terminal, serial_lines, curr_index, end_index)
 
-        return 0
+        return end_index 
     else:
         return None
 
+def disconnectKeyInputs():
+    if msvcrt.kbhit():
+        key = ord(msvcrt.getch())
 
+        if key == 27: #ESC
+                return None
+        elif key == 32: #Space
+                return 1
+        else:
+            return 0
+    
+    return 0
 
 def checkKeyInputs(serialPort, layout, terminal, serial_lines, curr_index, end_index, line):
     if msvcrt.kbhit():
@@ -105,8 +117,8 @@ def checkKeyInputs(serialPort, layout, terminal, serial_lines, curr_index, end_i
                     )
                 )
         elif key == 13: #Enter
-            end_index += 1
-            serial_lines.append(line)
+            #end_index += 1
+            #serial_lines.append(line)
             serial_meth.writeSerialLine(serialPort, line)
             line = ''
             layout["input"].update(

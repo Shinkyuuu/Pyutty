@@ -37,6 +37,8 @@ while repeat:
     if port:
         # Try to open serial port
         try:
+
+            print(port)
             serialPort = serial.Serial(
                 port = port,
                 baudrate=115200,

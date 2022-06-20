@@ -1,5 +1,5 @@
 import serial
-import time
+import serial.tools.list_ports
 from datetime import datetime
 from rich import box
 from rich.align import Align
@@ -16,7 +16,7 @@ import msvcrt
 from collections import namedtuple
 import setup_disp
 import main_disp
-
+import loading
 
 SerialConfig = namedtuple("SerialConfig", "port baudrate bytesize timeout stopbits")
 
@@ -60,15 +60,15 @@ def setup_start():
 
             if port == setup_disp.alerts.noPorts:
                 if not setup_disp.reattempt(layout, "There are not Ports open... Try again?"):
-                    return None
+                    return None, None
             elif port == setup_disp.alerts.leave:
                 if setup_disp.reattempt(layout, "Select 'Yes' to exit program..."):
-                    return None
+                    return None, None
             else:
                 done = True
 
         layout["body"].update(Panel(str(port) + " chosen"))
-        time.sleep(2)
+        sleep(2)
 
         serialPort = setup_disp.openSerial(
             layout, 
@@ -80,10 +80,10 @@ def setup_start():
         )
 
         while not serialPort:
-            if not setup_disp.reattempt(layout, "Cannot connect to " + port + ". \nWould you like to try again?"):
-                    return None
+            if not setup_disp.reattempt(layout, "Cannot connect to " + str(port) + ". \nWould you like to try again?"):
+                    return None, None
         
-        return SerialConfig(port, 115200, 8, 2, serial.STOPBITS_ONE), serialPort
+        return SerialConfig(port.device, 115200, 8, 2, serial.STOPBITS_ONE), serialPort
 
 def main_start(serialConfig, serialPort):
     terminal = Table.grid()
@@ -93,7 +93,7 @@ def main_start(serialConfig, serialPort):
     layout = main_disp.make_layout()
     layout["header"].update(Header())
     layout["side"].update(main_disp.make_settings(
-        serialConfig.port,
+        str(serialConfig.port),
         str(serialConfig.baudrate),
         str(serialConfig.bytesize),
         str(serialConfig.timeout),
@@ -116,6 +116,8 @@ def main_start(serialConfig, serialPort):
     )
 
     done = False
+    counter = 0
+    cnt_ref = 1
     serial_lines = []
     curr_index = 0
     end_index = len(serial_lines) - 1
@@ -123,17 +125,77 @@ def main_start(serialConfig, serialPort):
 
     with Live(layout, refresh_per_second=10, screen=True) as live:
         while not done:
-            sleep(.01)
-
-            line, curr_index, end_index = main_disp.checkKeyInputs(serialPort, layout, terminal, serial_lines, curr_index, end_index, line)
+            sleep(.02)
             
             status = main_disp.readSerial(serialPort, layout, terminal, serial_lines, curr_index, end_index)
 
-            if not line or not status:
-                done = True
+            if status == None:
+                serialPort.close()
+                layout["input"].update(
+                    Panel(
+                        Align.center(
+                            Align.center("[bold][white]Connection Lost... (Press |esc| to continue): [/white][/bold]"),
+                            vertical="middle",
+                        ),
+                        border_style="medium_purple"
+                    )
+                )
+
+                status = main_disp.disconnectKeyInputs()
+                while status == 0:
+                    status = main_disp.disconnectKeyInputs()
+
+                if status == None:
+                    done = True
+            else:
+                end_index = status
             
+            line, curr_index, end_index = main_disp.checkKeyInputs(serialPort, layout, terminal, serial_lines, curr_index, end_index, line)
+            if line == None:
+                done = True
+            # else:
+            #     end_index = status
+                
+            #     line, curr_index, end_index = main_disp.checkKeyInputs(serialPort, layout, terminal, serial_lines, curr_index, end_index, line)
+            #     if line == None:
+            #         done = True
 
-serialConfig, serialPort = setup_start()
+    return None
+            
+def loading_start():
+    load = Progress()
+    load.add_task("[red]Loading", 5)
 
-if serialConfig:
-    main_start(serialConfig, serialPort)
+    layout = loading.make_layout()
+    layout["header"].update(Header())    
+    layout["body"].update(
+        Panel(
+            Align.center(
+                Align.center(load),
+                vertical="middle",
+            ),
+            title="",
+            border_style="light_steel_blue1",
+            padding=(2, 2),
+        )
+    )
+
+    with Live(layout, refresh_per_second=10, screen=True):
+        while not load.finished:
+            sleep(0.1)
+            for i in range(28):
+                load.advance(load.tasks[0].id)
+
+
+done = False
+
+while not done:
+    serialConfig, serialPort = setup_start()
+
+    if serialConfig and serialPort:
+        loading_start()
+        ans = main_start(serialConfig, serialPort)
+        serialPort.close()
+        loading_start()
+    else:
+        done = True

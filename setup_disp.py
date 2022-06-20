@@ -47,9 +47,9 @@ def displaySelections(layout, table, title, items, choice):
 
     for index, item in enumerate(items):
         if choice == index:
-            table.add_row("[b blue]" + item + "[/b blue]")
+            table.add_row("[b blue]" + str(item) + "[/b blue]")
         else: 
-            table.add_row(item)
+            table.add_row(str(item))
 
     layout["body"].update(
         Panel(
@@ -97,9 +97,10 @@ def getPorts(layout, port_table):
     layout["body"].update(Panel("There are many ports"))
     ports = serial.tools.list_ports.comports()
     #ports = ["COM3", "COM2"]
+
     # User chooses COM port
     if len(ports) == 1: # If there is only 1, choose it
-        layout["body"].update(Panel("Openning " + ports[0] + "..."))
+        layout["body"].update(Panel("Openning " + str(ports[0]) + "..."))
         return ports[0]
     elif len(ports) > 1: # User chooses port
         layout["body"].update(Panel("There are many ports"))
@@ -109,19 +110,28 @@ def getPorts(layout, port_table):
         return alerts.noPorts
 
 def openSerial(layout, port, baudrate, bytesize, timeout, stopbits):
-    try:
-        serialPort = serial.Serial(
-            port = port,
+    serialPort = serial.Serial(
+            port = str(port.device),
             baudrate=baudrate,
             bytesize=bytesize, 
             timeout=timeout, 
             stopbits=stopbits
         )
-        return serialPort
+    return serialPort
+    # try:
+    #     serialPort = serial.Serial(
+    #         port = port,
+    #         baudrate=baudrate,
+    #         bytesize=bytesize, 
+    #         timeout=timeout, 
+    #         stopbits=stopbits
+    #     )
+    #     return serialPort
     
-    except:
-        layout["body"].update(Panel("Unable to open serial port"))
-        return None
+    # except:
+    #     layout["body"].update(Panel("Unable to open serial port"))
+    #     sleep(2)
+    #     return None
 
 def reattempt(layout, message):
     reattempt_table = Table.grid()
