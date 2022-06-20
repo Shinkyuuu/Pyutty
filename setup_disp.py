@@ -1,8 +1,5 @@
 ## IMPORTS ##
-import serial as serial
-from serial.tools import list_ports
-import sys
-import os
+import serial.tools.list_ports
 import time
 from datetime import datetime
 from rich import box
@@ -16,8 +13,23 @@ from rich.table import Table
 from rich.text import Text
 from rich.live import Live
 from time import sleep
+from collections import namedtuple
 import msvcrt
+import enum
+ 
+SerialConfig = namedtuple("SerialConfig", "port baudrate bytesize timeout stopbits")
 
+class alerts(enum.Enum):
+    success = 0
+    noPorts = 1
+    leave = 2
+
+port = None
+baudrate = 115200
+bytesize = 8
+timeout = 2
+stopbits = serial.STOPBITS_ONE
+    
 def make_layout():
     layout = Layout(name="root")
 
@@ -39,9 +51,10 @@ class Header:
         )
         return Panel(grid, style="white on medium_purple4")
 
-def displaySelections(layout, table, items, choice):
+def displaySelections(layout, table, title, items, choice):
     table = Table.grid()
-    table.add_column(justify="center")
+    table.add_column("Choose Port", justify="center")
+    table.add_row("[b light_steel_blue1][underline]" + title + "[/underline][/b light_steel_blue1]")
 
     for index, item in enumerate(items):
         if choice == index:
@@ -51,7 +64,10 @@ def displaySelections(layout, table, items, choice):
 
     layout["body"].update(
         Panel(
-            table,
+            Align.center(
+                Align.center(table),
+                vertical="middle",
+            ),
             box=box.ROUNDED,
             padding=(2, 2),
             title="",
@@ -59,82 +75,49 @@ def displaySelections(layout, table, items, choice):
         )
     )
 
-def selections(layout, table, items):
+def selections(layout, table, title, items):
     done = False
     choice = 0
     end = len(items)
 
-    displaySelections(layout, table, items, choice)
+    displaySelections(layout, table, title, items, choice)
     
     while not done:
+        time.sleep(0.01)
+
         if msvcrt.kbhit():
             key = ord(msvcrt.getch())
-            
-            if key == 27: #ESC
-                    choice = -1
-                    done = True
-            elif key == 13: #Enter
+
+            if key == 13: #Enter
                 done = True
                 
             elif key == 224: #Special keys (arrows, f keys, ins, del, etc.)
                 key = ord(msvcrt.getch())
 
-                if key == 75 and 0 <= choice - 1 <= end: #Down arrow
-                    choice -= 1
+                if key == 80: #Down arrow
+                    choice = (choice - 1) % end
 
-                elif key == 77 and 0 <= curr_index + 1 <= end: #Up arrow
-                    choice += 1
+                elif key == 72: #Up arrow
+                    choice = (choice + 1) % end
                 
-                displaySelections(layout, table, items, choice)
+                displaySelections(layout, table, title, items, choice)
         
-        return choice
+    return items[choice]
             
 def getPorts(layout, port_table):
-    ports = list_ports.comports()
-
+    layout["body"].update(Panel("There are many ports"))
+    #ports = serial.tools.list_ports.comports()
+    ports = ["COM3", "COM2"]
     # User chooses COM port
-    if len(found) == 1: # If there is only 1, choose it
+    if len(ports) == 1: # If there is only 1, choose it
         layout["body"].update(Panel("Openning " + ports[0] + "..."))
         return ports[0]
-    elif len(found) > 1: # User chooses port
-        return selections(layout, port_table, ports)
+    elif len(ports) > 1: # User chooses port
+        layout["body"].update(Panel("There are many ports"))
+        return selections(layout, port_table, "Select Port...", ports)
     else: # There are no ports
         layout["body"].update(Panel("No COM ports open."))
-        return -1
-
-def getPorts():
-    ports = serial.tools.list_ports.comports()
-    found = dict()
-
-    # Find and list all COM ports
-    for i, p in enumerate(ports):
-        found[i] = p.device
-        print(f"{i}: {p.device}")
-    
-    # User chooses COM port
-    if len(found) == 1: # If there is only 1, choose it
-        print(f"Chose {found[0]}")
-        return found[0]
-    elif len(found) > 1: # User chooses port
-        chosen = found[int(input("Chose COM Port (0, 1, ...): "))]
-        print(f"Chose {chosen}")
-        return chosen
-    else: # There are no ports
-        print("No COM Ports Open")
-    
-    return None
-
-def getSerialLine():
-    try:
-        # Wait until there is data waiting in the serial buffer
-        if(serialPort.in_waiting > 0):
-
-            # Print the contents of the serial data
-            return str(serialPort.readline().decode('Ascii'), end = '')
-    # If connection is lost or user types (ctrl + c)
-    except:
-        serialPort.close()
-        return None
+        return alerts.noPorts
 
 def openSerial(layout, port, baudrate, bytesize, timeout, stopbits):
     try:
@@ -145,19 +128,30 @@ def openSerial(layout, port, baudrate, bytesize, timeout, stopbits):
             timeout=timeout, 
             stopbits=stopbits
         )
+        return serialPort
     
     except:
         layout["body"].update(Panel("Unable to open serial port"))
+        return None
+
+def reattempt(layout, message):
+    reattempt_table = Table.grid()
+    reattempt_table.add_column(justify="center")
+    return True if selections(layout, reattempt_table, message, ["yes", "nes"]) == "yes" else False
 
 def start():
     port_table = Table.grid()
     port_table.add_column(justify="center")
+    port_table.add_row("[b light_steel_blue1][underline]Choose a Port[/underline][/b light_steel_blue1]")
     
     layout = make_layout()
     layout["header"].update(Header())
     layout["body"].update(
         Panel(
-            port_table,
+            Align.center(
+                Align.center(port_table),
+                vertical="middle",
+            ),
             box=box.ROUNDED,
             padding=(2, 2),
             title="",
@@ -165,6 +159,28 @@ def start():
         )
     )
 
-    port = getPorts(layout, port_table)
-    openSerial(layout, port, 115200, 8, 2, serial.STOPBITS_ONE)
+    done = False
     
+    with Live(layout, refresh_per_second=10, screen=True) as live:
+        while not done:
+            port = getPorts(layout, port_table)
+
+            if port == alerts.noPorts:
+                if not reattempt(layout, "There are not Ports open... Try again?"):
+                    return -1
+            elif port == alerts.leave:
+                if reattempt(layout, "Select 'Yes' to exit program..."):
+                    return -1
+            else:
+                done = True
+
+        layout["body"].update(Panel(str(port) + " chosen"))
+        time.sleep(2)
+
+        serial_connect = openSerial(layout, port, 115200, 8, 2, serial.STOPBITS_ONE)
+
+        while not serial_connect:
+            if not reattempt(layout, "Cannot connect to " + port + ". \nWould you like to try again?"):
+                    return -1
+        
+        return 0

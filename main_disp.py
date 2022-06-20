@@ -12,12 +12,6 @@ from rich.live import Live
 from time import sleep
 import msvcrt
 
-port = "COM3"
-baudrate = "115200"
-bytesize = "8"
-timeout = "2"
-stopbits = "1"
-
 def make_layout():
     layout = Layout(name="root")
 
@@ -28,6 +22,10 @@ def make_layout():
     layout["body"].split_row(
         Layout(name="side", minimum_size=13),
         Layout(name="main", ratio=10, minimum_size=30),
+    )
+    layout["main"].split(
+        Layout(name="term", ratio=10, minimum_size=30),
+        Layout(name="input", minimum_size = 5)
     )
     return layout
 
@@ -42,7 +40,7 @@ class Header:
         )
         return Panel(grid, style="white on medium_purple4")
 
-def make_settings():
+def make_settings(port, baudrate, bytesize, timeout, stopbits):
     settings = Table.grid(padding=0)
     settings.add_column(style="white", justify="center")
     settings.add_row("[b light_steel_blue1][underline]Port[/underline][/b light_steel_blue1]")
@@ -74,7 +72,7 @@ def refillTable(layout, terminal_table, serial_lines, index, end):
     for i, line in enumerate(serial_lines[index:]):
         terminal.add_row(str(i + index), "  " + line)
 
-    layout["main"].update(
+    layout["term"].update(
         Panel(
             terminal,
             box=box.ROUNDED,
@@ -92,7 +90,7 @@ def start():
     layout = make_layout()
     layout["header"].update(Header())
     layout["side"].update(make_settings())
-    layout["main"].update(
+    layout["term"].update(
         Panel(
             terminal,
             box=box.ROUNDED,
@@ -137,8 +135,3 @@ def start():
 
                 else:
                     line += chr(key)                    
-
-
-
-
-start()
